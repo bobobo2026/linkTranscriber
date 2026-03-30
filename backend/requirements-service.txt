@@ -1,0 +1,15 @@
+fastapi==0.115.12
+uvicorn==0.34.0
+SQLAlchemy==2.0.41
+greenlet==3.0.3
+openai==1.70.0
+kombu==5.5.2
+python-multipart==0.0.20
+python-dotenv==1.1.0
+requests==2.32.3
+httpx==0.28.1
+yt-dlp==2025.3.31
+ffmpeg-python==0.2.0
+gmssl==3.2.2
+youtube-transcript-api>=1.0.0
+blinker==1.9.0

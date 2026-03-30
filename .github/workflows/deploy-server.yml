@@ -1,0 +1,46 @@
+name: Deploy Server
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH key
+        shell: bash
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Sync code to server
+        shell: bash
+        run: |
+          rsync -az --delete \
+            --exclude '.git' \
+            --exclude '.github' \
+            --exclude '.venv' \
+            --exclude '.env.production' \
+            --exclude 'config/' \
+            --exclude 'data/' \
+            --exclude 'note_results/' \
+            --exclude 'uploads/' \
+            --exclude 'static/' \
+            --exclude 'bili_note.db' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/linktranscriber-api/"
+
+      - name: Deploy on server
+        shell: bash
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "APP_DIR=/opt/linktranscriber-api SERVICE_NAME=linktranscriber-api PORT=18001 PYTHON_BIN=/opt/miniconda3/bin/python bash /opt/linktranscriber-api/scripts/deploy-server.sh"

@@ -1,0 +1,16 @@
+[Unit]
+Description=linkTranscriber API FastAPI service
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=__APP_DIR__/.env.production
+Environment=PYTHONPATH=__APP_DIR__/backend
+ExecStart=__APP_DIR__/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port __PORT__
+Restart=always
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target
