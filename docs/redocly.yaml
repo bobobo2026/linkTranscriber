@@ -1,0 +1,15 @@
+apis:
+  public@latest:
+    root: ./openapi.json
+
+openapi:
+  generateCodeSamples:
+    languages:
+      - lang: curl
+      - lang: Python
+  hideDownloadButton: false
+  hideHostname: false
+  theme:
+    colors:
+      primary:
+        main: "#0f766e"

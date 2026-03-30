@@ -91,6 +91,28 @@ sudo apt install ffmpeg
 
 ## 服务 API
 
+自动生成的 API 文档建议优先看以下入口：
+
+- 本地开发态：
+  - `http://127.0.0.1:8483/docs`
+  - `http://127.0.0.1:8483/redoc`
+  - `http://127.0.0.1:8483/openapi.json`
+- 线上运行态：
+  - `http://139.196.124.192/linktranscriber-api/docs`
+  - `http://139.196.124.192/linktranscriber-api/redoc`
+  - `http://139.196.124.192/linktranscriber-api/openapi.json`
+- GitHub Pages：
+  - 由 `.github/workflows/deploy-api-docs.yml` 自动发布
+  - 首次启用后可在仓库 `Settings -> Pages` 中看到最终 URL
+
+如果需要手动本地生成静态文档站：
+
+```bash
+bash scripts/build-api-docs.sh
+```
+
+生成结果位于 `site/index.html`。
+
 ### 创建转写任务
 
 ```bash
@@ -181,6 +203,86 @@ curl -X POST http://127.0.0.1:8483/api/service/summaries \
   }
 }
 ```
+
+## 部署到服务器
+
+这个仓库已经内置了一套不依赖 Docker 的 GitHub Actions + systemd 发布链路，适合把 `linkTranscriber` 作为常驻后端服务部署到 Linux 服务器。
+
+### 部署方式
+
+- GitHub Actions 负责把代码同步到服务器
+- 服务器上的 `scripts/deploy-server.sh` 负责创建虚拟环境、安装依赖、生成 systemd 服务并重启
+- 服务默认以 `uvicorn` 方式运行
+- 反向代理建议使用 Nginx
+
+相关文件：
+
+- `.github/workflows/deploy-server.yml`
+- `scripts/deploy-server.sh`
+- `scripts/configure-runtime.sh`
+- `deploy/systemd/linktranscriber-api.service.template`
+- `deploy/nginx/linktranscriber-api.location.conf`
+- `backend/requirements-service.txt`
+
+### GitHub Secrets
+
+如果你要启用自动部署，需要在 GitHub 仓库里配置这些 secrets：
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+
+### 服务器约定
+
+默认脚本按下面这组约定部署：
+
+- 应用目录：`/opt/linktranscriber-api`
+- systemd 服务名：`linktranscriber-api`
+- 服务端口：`18001`
+- Python：`/opt/miniconda3/bin/python`
+
+如果你的服务器路径不同，可以在 workflow 的 SSH 命令里改环境变量：
+
+```bash
+APP_DIR=/opt/linktranscriber-api \
+SERVICE_NAME=linktranscriber-api \
+PORT=18001 \
+PYTHON_BIN=/opt/miniconda3/bin/python \
+bash /opt/linktranscriber-api/scripts/deploy-server.sh
+```
+
+### 运行时配置
+
+服务器首次部署时会自动生成 `.env.production`，并补齐最小必需项。
+
+常用运行时配置包括：
+
+- `BACKEND_HOST`
+- `BACKEND_PORT`
+- `TRANSCRIBER_TYPE`
+- `WHISPER_MODEL_SIZE`
+- `DEEPSEEK_API_KEY`
+
+抖音 Cookie 不建议直接写进 shell `source` 的 `.env.production`，更稳妥的做法是通过接口写入下载器配置，或者单独写入 `config/downloader.json`。
+
+### 首次部署后建议
+
+部署成功后建议立刻做这三步验证：
+
+1. 检查健康接口：`GET /api/sys_check`
+2. 提交一个真实抖音链接到 `POST /api/service/transcriptions`
+3. 用 `POST /api/service/summaries` 验证 DeepSeek 总结链路
+
+## 本地开发建议
+
+这个仓库最初来自 `BiliNote`，如果你已经有老的本地浅克隆，建议重新 clone 一份当前公开仓库作为后续主开发目录，避免混用两套不同历史：
+
+```bash
+git clone https://github.com/bobobo2026/linkTranscriber.git
+cd linkTranscriber
+```
+
+这样后续的提交、拉取和自动部署会更干净。
 
 ## 后续规划
 

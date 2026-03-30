@@ -1,0 +1,2041 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "linkTranscriber",
+    "description": "linkTranscriber 是一个基于 BiliNote 迭代的服务化后端，当前聚焦于短链接内容转写和大模型总结能力。",
+    "contact": {
+      "name": "linkTranscriber",
+      "url": "https://github.com/bobobo2026/linkTranscriber"
+    },
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8483",
+      "description": "本地开发环境"
+    },
+    {
+      "url": "http://139.196.124.192/linktranscriber-api",
+      "description": "线上 IP 入口"
+    },
+    {
+      "url": "https://xtf.spacebit.cn/linktranscriber-api",
+      "description": "临时 HTTPS 入口"
+    }
+  ],
+  "paths": {
+    "/api/delete_task": {
+      "post": {
+        "summary": "Delete Task",
+        "operationId": "delete_task_api_delete_task_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/upload": {
+      "post": {
+        "summary": "Upload",
+        "operationId": "upload_api_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_api_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/generate_note": {
+      "post": {
+        "summary": "Generate Note",
+        "operationId": "generate_note_api_generate_note_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/task_status/{task_id}": {
+      "get": {
+        "summary": "Get Task Status",
+        "operationId": "get_task_status_api_task_status__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/image_proxy": {
+      "get": {
+        "summary": "Image Proxy",
+        "operationId": "image_proxy_api_image_proxy_get",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/add_provider": {
+      "post": {
+        "summary": "Add Provider",
+        "operationId": "add_provider_api_add_provider_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/get_all_providers": {
+      "get": {
+        "summary": "Get All Providers",
+        "operationId": "get_all_providers_api_get_all_providers_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/get_provider_by_id/{id}": {
+      "get": {
+        "summary": "Get Provider By Id",
+        "operationId": "get_provider_by_id_api_get_provider_by_id__id__get",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/update_provider": {
+      "post": {
+        "summary": "Update Provider",
+        "operationId": "update_provider_api_update_provider_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProviderUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/connect_test": {
+      "post": {
+        "summary": "Gpt Connect Test",
+        "operationId": "gpt_connect_test_api_connect_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model_list": {
+      "get": {
+        "summary": "Model List",
+        "operationId": "model_list_api_model_list_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models/delete/{model_id}": {
+      "get": {
+        "summary": "Delete Model",
+        "operationId": "delete_model_api_models_delete__model_id__get",
+        "parameters": [
+          {
+            "name": "model_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Model Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model_list/{provider_id}": {
+      "get": {
+        "summary": "Model List",
+        "operationId": "model_list_api_model_list__provider_id__get",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/models": {
+      "post": {
+        "summary": "Create Model",
+        "operationId": "create_model_api_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModelRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/model_enable/{provider_id}": {
+      "get": {
+        "summary": "Get Enabled Models By Provider",
+        "operationId": "get_enabled_models_by_provider_api_model_enable__provider_id__get",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Provider Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/get_downloader_cookie/{platform}": {
+      "get": {
+        "summary": "Get Cookie",
+        "operationId": "get_cookie_api_get_downloader_cookie__platform__get",
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Platform"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/update_downloader_cookie": {
+      "post": {
+        "summary": "Update Cookie",
+        "operationId": "update_cookie_api_update_downloader_cookie_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CookieUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transcriber_config": {
+      "get": {
+        "summary": "Get Transcriber Config",
+        "operationId": "get_transcriber_config_api_transcriber_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Update Transcriber Config",
+        "operationId": "update_transcriber_config_api_transcriber_config_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranscriberConfigRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transcriber_models_status": {
+      "get": {
+        "summary": "Get Transcriber Models Status",
+        "description": "返回所有 whisper 模型的下载状态。",
+        "operationId": "get_transcriber_models_status_api_transcriber_models_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/transcriber_download": {
+      "post": {
+        "summary": "Download Transcriber Model",
+        "description": "触发后台下载指定的 whisper 模型。",
+        "operationId": "download_transcriber_model_api_transcriber_download_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelDownloadRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sys_health": {
+      "get": {
+        "summary": "Sys Health",
+        "operationId": "sys_health_api_sys_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sys_check": {
+      "get": {
+        "summary": "Sys Check",
+        "operationId": "sys_check_api_sys_check_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/deploy_status": {
+      "get": {
+        "summary": "Deploy Status",
+        "description": "返回部署监控所需的所有状态信息",
+        "operationId": "deploy_status_api_deploy_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service/transcriptions": {
+      "post": {
+        "tags": [
+          "Service API"
+        ],
+        "summary": "创建转写任务",
+        "description": "提交抖音或小红书链接并创建异步转写任务。如果命中同平台同链接的历史成功任务，会直接复用已有结果。",
+        "operationId": "create_transcription_api_service_transcriptions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTranscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateTranscriptionSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "平台不支持、Cookie 缺失或请求参数无效。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service/transcriptions/{task_id}": {
+      "get": {
+        "tags": [
+          "Service API"
+        ],
+        "summary": "查询转写任务",
+        "description": "轮询指定 task_id 的状态与结果。成功时会返回元信息、转写文本和内容抽取结果。",
+        "operationId": "get_transcription_api_service_transcriptions__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetTranscriptionSuccessEnvelope"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "任务不存在。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/service/summaries": {
+      "post": {
+        "tags": [
+          "Service API"
+        ],
+        "summary": "生成内容总结",
+        "description": "基于已完成的转写任务，或直接传入 transcript 内容，调用指定大模型生成总结。请求中的 prompt 会完整覆盖默认总结提示词。",
+        "operationId": "create_summary_api_service_summaries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SummaryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummarySuccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "模型参数无效、任务未完成或转写内容为空。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "服务内部错误。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorEnvelope"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiErrorEnvelope": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "业务错误码。"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg",
+            "description": "错误信息。"
+          },
+          "data": {
+            "title": "Data",
+            "description": "附加错误数据。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "msg"
+        ],
+        "title": "ApiErrorEnvelope"
+      },
+      "AudioMetaPayload": {
+        "properties": {
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "服务端落地的本地音频路径。"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "内容标题。"
+          },
+          "duration": {
+            "type": "number",
+            "title": "Duration",
+            "description": "音频或视频时长，单位秒。"
+          },
+          "cover_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Url",
+            "description": "封面图链接。"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform",
+            "description": "音频来源平台。"
+          },
+          "video_id": {
+            "type": "string",
+            "title": "Video Id",
+            "description": "平台内的唯一内容 ID。"
+          },
+          "raw_info": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Raw Info",
+            "description": "下载器返回的原始元信息。"
+          },
+          "video_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Path",
+            "description": "可选的视频本地路径。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file_path",
+          "title",
+          "duration",
+          "platform",
+          "video_id",
+          "raw_info"
+        ],
+        "title": "AudioMetaPayload"
+      },
+      "Body_upload_api_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_api_upload_post"
+      },
+      "ContentPayload": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "内容标题。"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body",
+            "description": "正文文本。"
+          },
+          "images": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Images",
+            "description": "图文图片链接列表。"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "作者昵称。"
+          },
+          "note_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note Id",
+            "description": "平台内容 ID。"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tags",
+            "description": "内容标签。"
+          },
+          "resolved_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Url",
+            "description": "小红书解析后的内容链接。"
+          }
+        },
+        "type": "object",
+        "title": "ContentPayload"
+      },
+      "ContentTypeEnum": {
+        "type": "string",
+        "enum": [
+          "video",
+          "article"
+        ],
+        "title": "ContentTypeEnum"
+      },
+      "CookieUpdateRequest": {
+        "properties": {
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "cookie": {
+            "type": "string",
+            "title": "Cookie"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "cookie"
+        ],
+        "title": "CookieUpdateRequest"
+      },
+      "CreateModelRequest": {
+        "properties": {
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "model_name"
+        ],
+        "title": "CreateModelRequest"
+      },
+      "CreateTranscriptionRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "待处理的公开视频短链或长链。",
+            "examples": [
+              "https://v.douyin.com/WfuC4_jO6R8/",
+              "http://xhslink.com/o/23s4jTem6em"
+            ]
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformEnum",
+            "description": "内容来源平台。",
+            "default": "douyin"
+          },
+          "cookie": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cookie",
+            "description": "可选的平台 Cookie。未传时优先读取服务端已保存配置。",
+            "examples": [
+              "sessionid=xxx; sid_tt=xxx"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "CreateTranscriptionRequest",
+        "example": {
+          "platform": "douyin",
+          "url": "https://v.douyin.com/WfuC4_jO6R8/"
+        }
+      },
+      "CreateTranscriptionResponseData": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "异步转写任务 ID。"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatusEnum",
+            "description": "当前任务状态。"
+          },
+          "reused": {
+            "type": "boolean",
+            "title": "Reused",
+            "description": "是否复用了已有成功任务。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "reused"
+        ],
+        "title": "CreateTranscriptionResponseData"
+      },
+      "CreateTranscriptionSuccessEnvelope": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "业务状态码，0 表示成功。",
+            "default": 0
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg",
+            "description": "业务提示信息。",
+            "default": "success"
+          },
+          "data": {
+            "$ref": "#/components/schemas/CreateTranscriptionResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "CreateTranscriptionSuccessEnvelope"
+      },
+      "DownloadQuality": {
+        "type": "string",
+        "enum": [
+          "fast",
+          "medium",
+          "slow"
+        ],
+        "title": "DownloadQuality"
+      },
+      "GetTranscriptionSuccessEnvelope": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "业务状态码，0 表示成功。",
+            "default": 0
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg",
+            "description": "业务提示信息。",
+            "default": "success"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TranscriptionTaskPayload"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "GetTranscriptionSuccessEnvelope"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ModelDownloadRequest": {
+        "properties": {
+          "model_size": {
+            "type": "string",
+            "title": "Model Size"
+          },
+          "transcriber_type": {
+            "type": "string",
+            "title": "Transcriber Type",
+            "default": "fast-whisper"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_size"
+        ],
+        "title": "ModelDownloadRequest"
+      },
+      "PlatformEnum": {
+        "type": "string",
+        "enum": [
+          "douyin",
+          "xiaohongshu"
+        ],
+        "title": "PlatformEnum"
+      },
+      "ProviderRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "api_key": {
+            "type": "string",
+            "title": "Api Key"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "api_key",
+          "base_url",
+          "type"
+        ],
+        "title": "ProviderRequest"
+      },
+      "ProviderUpdateRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "logo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "ProviderUpdateRequest"
+      },
+      "RecordRequest": {
+        "properties": {
+          "video_id": {
+            "type": "string",
+            "title": "Video Id"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_id",
+          "platform"
+        ],
+        "title": "RecordRequest"
+      },
+      "SourcePayload": {
+        "properties": {
+          "platform": {
+            "$ref": "#/components/schemas/PlatformEnum",
+            "description": "来源平台。"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "提交时的原始链接。"
+          },
+          "resolved_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved Url",
+            "description": "短链解析后的真实链接。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "platform",
+          "url"
+        ],
+        "title": "SourcePayload"
+      },
+      "SummaryRequest": {
+        "properties": {
+          "transcription_task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcription Task Id",
+            "description": "已完成转写任务的 task_id。与 transcript 二选一。"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptPayload"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "直接传入转写结果进行总结。与 transcription_task_id 二选一。"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id",
+            "description": "模型供应商 ID。",
+            "examples": [
+              "deepseek"
+            ]
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name",
+            "description": "模型名称。",
+            "examples": [
+              "deepseek-chat"
+            ]
+          },
+          "prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt",
+            "description": "请求级自定义提示词。传入后会覆盖默认总结提示词。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider_id",
+          "model_name"
+        ],
+        "title": "SummaryRequest",
+        "examples": [
+          {
+            "model_name": "deepseek-chat",
+            "provider_id": "deepseek",
+            "transcription_task_id": "8664a91d-c882-43e9-8030-b0633a9ba8b3"
+          },
+          {
+            "model_name": "deepseek-chat",
+            "prompt": "总结归纳，提取可执行的todolist（最多4点，最好可以锁定时间线）",
+            "provider_id": "deepseek",
+            "transcript": {
+              "full_text": "想发财先戒色",
+              "language": "zh",
+              "segments": [
+                {
+                  "end": 3.2,
+                  "start": 0.0,
+                  "text": "想发财先戒色"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "SummaryResponseData": {
+        "properties": {
+          "summary_markdown": {
+            "type": "string",
+            "title": "Summary Markdown",
+            "description": "总结结果，使用 Markdown 文本输出。"
+          },
+          "prompt_source": {
+            "type": "string",
+            "title": "Prompt Source",
+            "description": "提示词来源，default 或 request。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary_markdown",
+          "prompt_source"
+        ],
+        "title": "SummaryResponseData"
+      },
+      "SummarySuccessEnvelope": {
+        "properties": {
+          "code": {
+            "type": "integer",
+            "title": "Code",
+            "description": "业务状态码，0 表示成功。",
+            "default": 0
+          },
+          "msg": {
+            "type": "string",
+            "title": "Msg",
+            "description": "业务提示信息。",
+            "default": "success"
+          },
+          "data": {
+            "$ref": "#/components/schemas/SummaryResponseData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "data"
+        ],
+        "title": "SummarySuccessEnvelope"
+      },
+      "TaskStatusEnum": {
+        "type": "string",
+        "enum": [
+          "PENDING",
+          "PARSING",
+          "DOWNLOADING",
+          "TRANSCRIBING",
+          "SUMMARIZING",
+          "FORMATTING",
+          "SAVING",
+          "SUCCESS",
+          "FAILED"
+        ],
+        "title": "TaskStatusEnum"
+      },
+      "TestRequest": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "TestRequest"
+      },
+      "TranscriberConfigRequest": {
+        "properties": {
+          "transcriber_type": {
+            "type": "string",
+            "title": "Transcriber Type"
+          },
+          "whisper_model_size": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Whisper Model Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transcriber_type"
+        ],
+        "title": "TranscriberConfigRequest"
+      },
+      "TranscriptPayload": {
+        "properties": {
+          "full_text": {
+            "type": "string",
+            "title": "Full Text",
+            "description": "完整转写文本或图文归一化正文。"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/TranscriptSegmentPayload"
+            },
+            "type": "array",
+            "title": "Segments",
+            "description": "按时间分段的转写结果。图文内容为空数组。"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "转写识别出的语言。",
+            "examples": [
+              "zh"
+            ]
+          },
+          "raw": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw",
+            "description": "底层平台或转写器的原始响应。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_text"
+        ],
+        "title": "TranscriptPayload"
+      },
+      "TranscriptSegmentPayload": {
+        "properties": {
+          "start": {
+            "type": "number",
+            "title": "Start",
+            "description": "片段开始时间，单位秒。",
+            "examples": [
+              0.0
+            ]
+          },
+          "end": {
+            "type": "number",
+            "title": "End",
+            "description": "片段结束时间，单位秒。",
+            "examples": [
+              3.2
+            ]
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "该时间片段对应的转写文本。",
+            "examples": [
+              "想发财先戒色"
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "text"
+        ],
+        "title": "TranscriptSegmentPayload"
+      },
+      "TranscriptionTaskPayload": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id",
+            "description": "转写任务 ID。"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatusEnum",
+            "description": "当前任务状态。"
+          },
+          "platform": {
+            "$ref": "#/components/schemas/PlatformEnum",
+            "description": "来源平台。"
+          },
+          "content_type": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentTypeEnum"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "内容类型。视频为 video，图文为 article，未完成任务可能为空。"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SourcePayload",
+            "description": "原始链接与解析信息。"
+          },
+          "audio_meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AudioMetaPayload"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "音频下载元数据。"
+          },
+          "transcript": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TranscriptPayload"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "转写结果。"
+          },
+          "content": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentPayload"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "结构化内容抽取结果。"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message",
+            "description": "失败时的错误信息。"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "status",
+          "platform",
+          "source"
+        ],
+        "title": "TranscriptionTaskPayload"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VideoRequest": {
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "title": "Video Url"
+          },
+          "platform": {
+            "type": "string",
+            "title": "Platform"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/DownloadQuality"
+          },
+          "screenshot": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Screenshot",
+            "default": false
+          },
+          "link": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Link",
+            "default": false
+          },
+          "model_name": {
+            "type": "string",
+            "title": "Model Name"
+          },
+          "provider_id": {
+            "type": "string",
+            "title": "Provider Id"
+          },
+          "task_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task Id"
+          },
+          "format": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format",
+            "default": []
+          },
+          "style": {
+            "type": "string",
+            "title": "Style"
+          },
+          "extras": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extras"
+          },
+          "video_understanding": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Understanding",
+            "default": false
+          },
+          "video_interval": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Interval",
+            "default": 0
+          },
+          "grid_size": {
+            "anyOf": [
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grid Size",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url",
+          "platform",
+          "quality",
+          "model_name",
+          "provider_id"
+        ],
+        "title": "VideoRequest"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Service API",
+      "description": "面向 linkTranscriber 服务化调用的核心接口，覆盖链接转写任务和大模型总结。"
+    }
+  ]
+}
