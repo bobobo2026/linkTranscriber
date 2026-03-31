@@ -276,6 +276,19 @@ class TestServiceApi(unittest.TestCase):
         self.assertNotIn("转写文本如下：", prompt)
         self.assertEqual(source, "request")
 
+    def test_build_summary_prompt_uses_structured_todolist_template_by_default(self):
+        transcript = service_api.TranscriptResult(
+            language="zh",
+            full_text="全文",
+            segments=[],
+        )
+        prompt, source = service_api.ServiceApi._build_summary_prompt(None, transcript)
+        self.assertIn("一句话总结：", prompt)
+        self.assertIn("TodoList：", prompt)
+        self.assertIn("提醒时间：", prompt)
+        self.assertIn("全文", prompt)
+        self.assertEqual(source, "default")
+
     def test_normalize_transcript_falls_back_to_segments(self):
         transcript = service_api.ServiceApi._normalize_transcript(
             {

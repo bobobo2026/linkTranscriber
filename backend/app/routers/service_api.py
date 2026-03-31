@@ -105,7 +105,7 @@ class CreateTranscriptionResponseData(BaseModel):
 
 
 class SummaryResponseData(BaseModel):
-    summary_markdown: str = Field(..., description="总结结果，使用 Markdown 文本输出。")
+    summary_markdown: str = Field(..., description="总结结果，默认输出固定结构的一句话总结加 TodoList。")
     prompt_source: str = Field(..., description="提示词来源，default 或 request。")
 
 
@@ -149,7 +149,7 @@ class SummaryRequest(BaseModel):
     model_name: str = Field(..., description="模型名称。", examples=["deepseek-chat"])
     prompt: Optional[str] = Field(
         default=None,
-        description="请求级自定义提示词。传入后会覆盖默认总结提示词。",
+        description="请求级自定义提示词。传入后会覆盖默认总结提示词；默认会返回固定结构的 TodoList。",
     )
 
     @model_validator(mode="after")
@@ -174,7 +174,7 @@ class SummaryRequest(BaseModel):
                     },
                     "provider_id": "deepseek",
                     "model_name": "deepseek-chat",
-                    "prompt": "总结归纳，提取可执行的todolist（最多4点，最好可以锁定时间线）",
+                    "prompt": "总结归纳，提取可执行的todolist（最多4点，最好可以锁定时间线）。每条必须包含：事项、执行时间、提醒时间、说明。",
                 },
             ]
         }
@@ -268,7 +268,7 @@ def get_transcription(task_id: str):
     summary="生成内容总结",
     description=(
         "基于已完成的转写任务，或直接传入 transcript 内容，调用指定大模型生成总结。"
-        "请求中的 prompt 会完整覆盖默认总结提示词。"
+        "默认提示词会输出固定结构的一句话总结与 TodoList；请求中的 prompt 会完整覆盖默认总结提示词。"
     ),
     response_model=SummarySuccessEnvelope,
     responses=SUMMARY_RESPONSES,

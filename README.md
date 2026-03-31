@@ -174,6 +174,18 @@ curl -X POST http://127.0.0.1:8483/api/service/summaries \
   }'
 ```
 
+默认情况下，这个接口会返回固定结构的结果：
+
+```text
+一句话总结：...
+
+TodoList：
+1. 事项：...
+执行时间：...
+提醒时间：...
+说明：...
+```
+
 ### 按请求覆盖 prompt
 
 ```bash
@@ -183,7 +195,7 @@ curl -X POST http://127.0.0.1:8483/api/service/summaries \
     "transcription_task_id": "uuid",
     "provider_id": "deepseek",
     "model_name": "deepseek-chat",
-    "prompt": "请基于下方文本只输出一句话总结，不要标题。\\n\\n{transcript}"
+    "prompt": "总结归纳，提取可执行的todolist（最多4点，最好可以锁定时间线）。每条必须包含：事项、执行时间、提醒时间、说明。\\n\\n{transcript}"
   }'
 ```
 
