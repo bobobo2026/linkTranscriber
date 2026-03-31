@@ -8,6 +8,7 @@ from typing import Any, Optional
 import requests
 
 from app.downloaders.douyin_downloader import DouyinDownloader
+from app.downloaders.xiaohongshu_downloader import XiaoHongShuDownloader
 from app.enmus.note_enums import DownloadQuality
 from app.enmus.task_status_enums import TaskStatus
 from app.models.model_config import ModelConfig
@@ -21,6 +22,7 @@ from app.gpt.provider.OpenAI_compatible_provider import OpenAICompatibleProvider
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
+SUPPORTED_PLATFORMS = {"douyin", "xiaohongshu"}
 
 SERVICE_TASK_DIR = Path(os.getenv("NOTE_OUTPUT_DIR", "note_results")) / "service_tasks"
 SERVICE_TASK_DIR.mkdir(parents=True, exist_ok=True)
@@ -70,8 +72,35 @@ class ServiceTaskStore:
         cls.create(data)
         return data
 
+    @classmethod
+    def list_all(cls) -> list[dict[str, Any]]:
+        tasks: list[dict[str, Any]] = []
+        for path in sorted(SERVICE_TASK_DIR.glob("*.json")):
+            try:
+                tasks.append(json.loads(path.read_text(encoding="utf-8")))
+            except Exception:
+                logger.warning("跳过损坏的服务任务文件: %s", path)
+        return tasks
+
 
 class ServiceApi:
+    @staticmethod
+    def _find_reusable_task(platform: str, url: str, resolved_url: Optional[str] = None) -> Optional[dict[str, Any]]:
+        for task in reversed(ServiceTaskStore.list_all()):
+            if task.get("platform") != platform:
+                continue
+            if task.get("status") != TaskStatus.SUCCESS.value:
+                continue
+            transcript = task.get("transcript") or {}
+            if not transcript.get("full_text"):
+                continue
+            source = task.get("source") or {}
+            if source.get("url") == url:
+                return task
+            if resolved_url and source.get("resolved_url") == resolved_url:
+                return task
+        return None
+
     @staticmethod
     def _resolve_douyin_url(url: str) -> str:
         if "v.douyin.com" not in url:
@@ -90,10 +119,24 @@ class ServiceApi:
         return url
 
     @staticmethod
-    def _make_downloader(cookie: Optional[str] = None) -> DouyinDownloader:
-        downloader = DouyinDownloader()
-        effective_cookie = cookie.strip() if cookie else CookieConfigManager().get("douyin")
-        if effective_cookie:
+    def _resolve_url(url: str, platform: str, cookie: Optional[str] = None) -> str:
+        if platform == "douyin":
+            return ServiceApi._resolve_douyin_url(url)
+        if platform == "xiaohongshu":
+            return ServiceApi._make_downloader(platform=platform, cookie=cookie).resolve_url(url)
+        raise ServiceApiError(f"暂不支持的平台: {platform}")
+
+    @staticmethod
+    def _make_downloader(platform: str, cookie: Optional[str] = None):
+        if platform == "douyin":
+            downloader = DouyinDownloader()
+        elif platform == "xiaohongshu":
+            downloader = XiaoHongShuDownloader(cookie=cookie)
+        else:
+            raise ServiceApiError(f"暂不支持的平台: {platform}")
+
+        effective_cookie = cookie.strip() if cookie else CookieConfigManager().get(platform)
+        if effective_cookie and hasattr(downloader, "headers_config"):
             downloader.headers_config["Cookie"] = effective_cookie.strip()
         return downloader
 
@@ -106,8 +149,18 @@ class ServiceApi:
 
     @staticmethod
     def create_transcription_task(url: str, platform: str, cookie: Optional[str] = None) -> dict[str, str]:
-        if platform != "douyin":
-            raise ServiceApiError("首版仅支持 douyin 平台")
+        if platform not in SUPPORTED_PLATFORMS:
+            raise ServiceApiError(f"首版仅支持 {', '.join(sorted(SUPPORTED_PLATFORMS))} 平台")
+
+        resolved_url = ServiceApi._resolve_url(url=url, platform=platform, cookie=cookie)
+        reusable_task = ServiceApi._find_reusable_task(platform=platform, url=url, resolved_url=resolved_url)
+        if reusable_task:
+            return {
+                "task_id": reusable_task["task_id"],
+                "status": reusable_task["status"],
+                "cookie": cookie,
+                "reused": True,
+            }
 
         task_id = str(uuid.uuid4())
         ServiceTaskStore.create(
@@ -115,55 +168,126 @@ class ServiceApi:
                 "task_id": task_id,
                 "status": TaskStatus.PENDING.value,
                 "platform": platform,
-                "content_type": "video",
+                "content_type": None,
                 "source": {
                     "platform": platform,
                     "url": url,
-                    "resolved_url": None,
+                    "resolved_url": resolved_url,
                 },
                 "audio_meta": None,
                 "transcript": None,
+                "content": None,
                 "error_message": None,
             }
         )
 
-        return {"task_id": task_id, "status": TaskStatus.PENDING.value, "cookie": cookie}
+        return {"task_id": task_id, "status": TaskStatus.PENDING.value, "cookie": cookie, "reused": False}
+
+    @staticmethod
+    def _transcribe_audio(audio_meta) -> TranscriptResult:
+        config_manager = TranscriberConfigManager()
+        transcriber = get_transcriber(
+            transcriber_type=config_manager.get_transcriber_type(),
+            model_size=config_manager.get_whisper_model_size(),
+            device="cuda",
+        )
+        transcript = transcriber.transcript(file_path=audio_meta.file_path)
+        if transcript is None or not transcript.full_text:
+            raise ServiceApiError("转写结果为空")
+        return transcript
+
+    @staticmethod
+    def _build_article_transcript(title: str, body: str, raw: Optional[dict[str, Any]] = None) -> TranscriptResult:
+        parts = [part.strip() for part in (title, body) if part and part.strip()]
+        full_text = "\n\n".join(parts)
+        if not full_text:
+            raise ServiceApiError("图文正文为空")
+        return TranscriptResult(language="zh", full_text=full_text, segments=[], raw=raw)
+
+    @staticmethod
+    def _run_douyin_task(task_id: str, resolved_url: str, cookie: Optional[str]) -> None:
+        ServiceApi._update_status(task_id, TaskStatus.DOWNLOADING.value, None)
+        downloader = ServiceApi._make_downloader(platform="douyin", cookie=cookie)
+        audio_meta = downloader.download(
+            video_url=resolved_url,
+            quality=DownloadQuality.medium,
+            output_dir=None,
+            need_video=False,
+        )
+
+        ServiceApi._update_status(task_id, TaskStatus.TRANSCRIBING.value, None)
+        transcript = ServiceApi._transcribe_audio(audio_meta)
+        ServiceTaskStore.update(
+            task_id,
+            status=TaskStatus.SUCCESS.value,
+            content_type="video",
+            audio_meta=asdict(audio_meta),
+            transcript=asdict(transcript),
+            content=None,
+            error_message=None,
+        )
+
+    @staticmethod
+    def _run_xiaohongshu_task(task_id: str, resolved_url: str, cookie: Optional[str]) -> None:
+        downloader = ServiceApi._make_downloader(platform="xiaohongshu", cookie=cookie)
+        note_payload = downloader.fetch_note(resolved_url)
+        content = note_payload["content"]
+
+        if note_payload["content_type"] == "article":
+            transcript = ServiceApi._build_article_transcript(
+                title=content.get("title") or "",
+                body=content.get("body") or "",
+                raw=note_payload.get("note_info"),
+            )
+            ServiceTaskStore.update(
+                task_id,
+                status=TaskStatus.SUCCESS.value,
+                content_type="article",
+                audio_meta=None,
+                transcript=asdict(transcript),
+                content=content,
+                error_message=None,
+            )
+            return
+
+        ServiceApi._update_status(task_id, TaskStatus.DOWNLOADING.value, None)
+        audio_meta = downloader.download(
+            video_url=resolved_url,
+            quality=DownloadQuality.medium,
+            output_dir=None,
+            need_video=False,
+            note_payload=note_payload,
+        )
+        ServiceApi._update_status(task_id, TaskStatus.TRANSCRIBING.value, None)
+        transcript = ServiceApi._transcribe_audio(audio_meta)
+        ServiceTaskStore.update(
+            task_id,
+            status=TaskStatus.SUCCESS.value,
+            content_type="video",
+            audio_meta=asdict(audio_meta),
+            transcript=asdict(transcript),
+            content=content,
+            error_message=None,
+        )
 
     @staticmethod
     def run_transcription_task(task_id: str, url: str, platform: str, cookie: Optional[str] = None) -> None:
         def _execute() -> None:
             try:
                 ServiceApi._update_status(task_id, TaskStatus.PARSING.value, None)
-                resolved_url = ServiceApi._resolve_douyin_url(url)
+                task = ServiceTaskStore.load(task_id) or {}
+                resolved_url = ((task.get("source") or {}).get("resolved_url")) or ServiceApi._resolve_url(
+                    url=url,
+                    platform=platform,
+                    cookie=cookie,
+                )
                 ServiceTaskStore.update(task_id, source={"platform": platform, "url": url, "resolved_url": resolved_url})
-
-                ServiceApi._update_status(task_id, TaskStatus.DOWNLOADING.value, None)
-                downloader = ServiceApi._make_downloader(cookie)
-                audio_meta = downloader.download(
-                    video_url=resolved_url,
-                    quality=DownloadQuality.medium,
-                    output_dir=None,
-                    need_video=False,
-                )
-
-                ServiceApi._update_status(task_id, TaskStatus.TRANSCRIBING.value, None)
-                config_manager = TranscriberConfigManager()
-                transcriber = get_transcriber(
-                    transcriber_type=config_manager.get_transcriber_type(),
-                    model_size=config_manager.get_whisper_model_size(),
-                    device="cuda",
-                )
-                transcript = transcriber.transcript(file_path=audio_meta.file_path)
-                if transcript is None or not transcript.full_text:
-                    raise ServiceApiError("转写结果为空")
-
-                ServiceTaskStore.update(
-                    task_id,
-                    status=TaskStatus.SUCCESS.value,
-                    audio_meta=asdict(audio_meta),
-                    transcript=asdict(transcript),
-                    error_message=None,
-                )
+                if platform == "douyin":
+                    ServiceApi._run_douyin_task(task_id, resolved_url, cookie)
+                elif platform == "xiaohongshu":
+                    ServiceApi._run_xiaohongshu_task(task_id, resolved_url, cookie)
+                else:
+                    raise ServiceApiError(f"暂不支持的平台: {platform}")
             except Exception as exc:
                 logger.error("服务化转写任务失败: %s", exc, exc_info=True)
                 ServiceTaskStore.update(task_id, status=TaskStatus.FAILED.value, error_message=str(exc))

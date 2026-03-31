@@ -3,6 +3,7 @@ import pathlib
 import sys
 import types
 import unittest
+from dataclasses import dataclass
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -22,6 +23,7 @@ def _install_stubs():
     utils_pkg = types.ModuleType("app.utils")
 
     douyin_mod = types.ModuleType("app.downloaders.douyin_downloader")
+    xhs_mod = types.ModuleType("app.downloaders.xiaohongshu_downloader")
 
     class _DouyinDownloader:
         def __init__(self):
@@ -31,6 +33,56 @@ def _install_stubs():
             return None
 
     douyin_mod.DouyinDownloader = _DouyinDownloader
+
+    @dataclass
+    class _AudioDownloadResult:
+        file_path: str = ""
+        title: str = ""
+        duration: float = 0
+        cover_url: str | None = None
+        platform: str = ""
+        video_id: str = ""
+        raw_info: dict | None = None
+        video_path: str | None = None
+
+    class _XiaoHongShuDownloader:
+        note_payload = {
+            "content_type": "article",
+            "resolved_url": "https://www.xiaohongshu.com/explore/abc123",
+            "note_id": "abc123",
+            "note_info": {"id": "abc123"},
+            "content": {
+                "title": "标题",
+                "body": "正文",
+                "images": ["https://img/1.jpg"],
+                "author": "作者",
+                "note_id": "abc123",
+                "tags": ["标签"],
+                "resolved_url": "https://www.xiaohongshu.com/explore/abc123",
+            },
+        }
+
+        def __init__(self, cookie=None):
+            self.headers_config = {"Cookie": cookie}
+
+        def resolve_url(self, url):
+            return self.note_payload.get("resolved_url") or url
+
+        def fetch_note(self, _url):
+            return self.note_payload
+
+        def download(self, **_kwargs):
+            return _AudioDownloadResult(
+                file_path="/tmp/test.mp3",
+                title="视频标题",
+                duration=3.2,
+                cover_url="https://img/cover.jpg",
+                platform="xiaohongshu",
+                video_id="video123",
+                raw_info={"tags": "标签"},
+            )
+
+    xhs_mod.XiaoHongShuDownloader = _XiaoHongShuDownloader
 
     note_enums_mod = types.ModuleType("app.enmus.note_enums")
 
@@ -65,18 +117,22 @@ def _install_stubs():
 
     transcriber_model_mod = types.ModuleType("app.models.transcriber_model")
 
+    @dataclass
     class _TranscriptSegment:
-        def __init__(self, start=0, end=0, text=""):
-            self.start = start
-            self.end = end
-            self.text = text
+        start: float = 0
+        end: float = 0
+        text: str = ""
 
+    @dataclass
     class _TranscriptResult:
-        def __init__(self, language=None, full_text="", segments=None, raw=None):
-            self.language = language
-            self.full_text = full_text
-            self.segments = segments or []
-            self.raw = raw
+        language: str | None = None
+        full_text: str = ""
+        segments: list | None = None
+        raw: dict | None = None
+
+        def __post_init__(self):
+            if self.segments is None:
+                self.segments = []
 
     transcriber_model_mod.TranscriptSegment = _TranscriptSegment
     transcriber_model_mod.TranscriptResult = _TranscriptResult
@@ -164,6 +220,7 @@ def _install_stubs():
     sys.modules.setdefault("app.gpt.provider", provider_pkg)
     sys.modules.setdefault("app.utils", utils_pkg)
     sys.modules["app.downloaders.douyin_downloader"] = douyin_mod
+    sys.modules["app.downloaders.xiaohongshu_downloader"] = xhs_mod
     sys.modules["app.enmus.note_enums"] = note_enums_mod
     sys.modules["app.enmus.task_status_enums"] = task_status_mod
     sys.modules["app.models.model_config"] = model_config_mod
@@ -186,6 +243,25 @@ spec.loader.exec_module(service_api)
 
 
 class TestServiceApi(unittest.TestCase):
+    def setUp(self):
+        for path in service_api.SERVICE_TASK_DIR.glob("*.json"):
+            path.unlink()
+        service_api.XiaoHongShuDownloader.note_payload = {
+            "content_type": "article",
+            "resolved_url": "https://www.xiaohongshu.com/explore/abc123",
+            "note_id": "abc123",
+            "note_info": {"id": "abc123"},
+            "content": {
+                "title": "标题",
+                "body": "正文",
+                "images": ["https://img/1.jpg"],
+                "author": "作者",
+                "note_id": "abc123",
+                "tags": ["标签"],
+                "resolved_url": "https://www.xiaohongshu.com/explore/abc123",
+            },
+        }
+
     def test_build_summary_prompt_uses_placeholder_when_present(self):
         transcript = service_api.TranscriptResult(
             language="zh",
@@ -212,13 +288,157 @@ class TestServiceApi(unittest.TestCase):
         self.assertEqual(transcript.full_text, "你好\n世界")
         self.assertEqual(len(transcript.segments), 2)
 
-    def test_create_transcription_task_rejects_non_douyin(self):
-        with self.assertRaises(service_api.ServiceApiError):
-            service_api.ServiceApi.create_transcription_task("https://example.com", "xiaohongshu")
+    def test_create_transcription_task_accepts_xiaohongshu(self):
+        created = service_api.ServiceApi.create_transcription_task("https://xhslink.com/abc", "xiaohongshu")
+        self.assertEqual(created["status"], "PENDING")
+        self.assertFalse(created["reused"])
 
     def test_make_downloader_uses_stored_cookie_when_request_cookie_missing(self):
-        downloader = service_api.ServiceApi._make_downloader()
+        downloader = service_api.ServiceApi._make_downloader(platform="douyin")
         self.assertEqual(downloader.headers_config["Cookie"], "stored-cookie")
+
+    def test_make_xiaohongshu_downloader_uses_stored_cookie_when_request_cookie_missing(self):
+        downloader = service_api.ServiceApi._make_downloader(platform="xiaohongshu")
+        self.assertEqual(downloader.headers_config["Cookie"], "stored-cookie")
+
+    def test_build_article_transcript_uses_title_and_body(self):
+        transcript = service_api.ServiceApi._build_article_transcript("标题", "正文")
+        self.assertEqual(transcript.full_text, "标题\n\n正文")
+        self.assertEqual(transcript.segments, [])
+
+    def test_run_xiaohongshu_article_task_skips_transcriber(self):
+        task_id = "xhs-article"
+        service_api.ServiceTaskStore.create(
+            {
+                "task_id": task_id,
+                "status": "PENDING",
+                "platform": "xiaohongshu",
+                "content_type": None,
+                "source": {"platform": "xiaohongshu", "url": "https://xhslink.com/a", "resolved_url": None},
+                "audio_meta": None,
+                "transcript": None,
+                "content": None,
+                "error_message": None,
+            }
+        )
+        service_api.ServiceApi.run_transcription_task(task_id, "https://xhslink.com/a", "xiaohongshu")
+        task = service_api.ServiceTaskStore.load(task_id)
+        self.assertEqual(task["status"], "SUCCESS")
+        self.assertEqual(task["content_type"], "article")
+        self.assertEqual(task["content"]["author"], "作者")
+        self.assertEqual(task["transcript"]["full_text"], "标题\n\n正文")
+
+    def test_run_xiaohongshu_video_task_returns_audio_meta_and_content(self):
+        task_id = "xhs-video"
+        service_api.ServiceTaskStore.create(
+            {
+                "task_id": task_id,
+                "status": "PENDING",
+                "platform": "xiaohongshu",
+                "content_type": None,
+                "source": {"platform": "xiaohongshu", "url": "https://xhslink.com/v", "resolved_url": None},
+                "audio_meta": None,
+                "transcript": None,
+                "content": None,
+                "error_message": None,
+            }
+        )
+        service_api.XiaoHongShuDownloader.note_payload = {
+            "content_type": "video",
+            "resolved_url": "https://www.xiaohongshu.com/explore/video123",
+            "note_id": "video123",
+            "note_info": {"id": "video123"},
+            "content": {
+                "title": "视频标题",
+                "body": "视频正文",
+                "images": ["https://img/cover.jpg"],
+                "author": "作者",
+                "note_id": "video123",
+                "tags": ["标签"],
+                "resolved_url": "https://www.xiaohongshu.com/explore/video123",
+            },
+        }
+
+        class _Transcriber:
+            @staticmethod
+            def transcript(file_path):
+                return service_api.TranscriptResult(
+                    language="zh",
+                    full_text=f"来自 {file_path} 的转写",
+                    segments=[],
+                )
+
+        service_api.get_transcriber = lambda **_kwargs: _Transcriber()
+        service_api.ServiceApi.run_transcription_task(task_id, "https://xhslink.com/v", "xiaohongshu")
+        task = service_api.ServiceTaskStore.load(task_id)
+        self.assertEqual(task["status"], "SUCCESS")
+        self.assertEqual(task["content_type"], "video")
+        self.assertEqual(task["audio_meta"]["platform"], "xiaohongshu")
+        self.assertEqual(task["content"]["note_id"], "video123")
+        self.assertIn("转写", task["transcript"]["full_text"])
+
+    def test_create_transcription_task_reuses_existing_success_task_by_same_url(self):
+        existing_task_id = "existing-success"
+        service_api.ServiceTaskStore.create(
+            {
+                "task_id": existing_task_id,
+                "status": "SUCCESS",
+                "platform": "xiaohongshu",
+                "content_type": "article",
+                "source": {
+                    "platform": "xiaohongshu",
+                    "url": "https://xhslink.com/reuse",
+                    "resolved_url": "https://www.xiaohongshu.com/explore/reuse123",
+                },
+                "audio_meta": None,
+                "transcript": {"full_text": "已存在的正文", "segments": []},
+                "content": {"title": "旧标题"},
+                "error_message": None,
+            }
+        )
+        created = service_api.ServiceApi.create_transcription_task("https://xhslink.com/reuse", "xiaohongshu")
+        self.assertEqual(created["task_id"], existing_task_id)
+        self.assertEqual(created["status"], "SUCCESS")
+        self.assertTrue(created["reused"])
+
+    def test_create_transcription_task_reuses_existing_success_task_by_resolved_url(self):
+        existing_task_id = "existing-by-resolved"
+        service_api.ServiceTaskStore.create(
+            {
+                "task_id": existing_task_id,
+                "status": "SUCCESS",
+                "platform": "xiaohongshu",
+                "content_type": "video",
+                "source": {
+                    "platform": "xiaohongshu",
+                    "url": "https://www.xiaohongshu.com/explore/video123",
+                    "resolved_url": "https://www.xiaohongshu.com/explore/video123",
+                },
+                "audio_meta": {"platform": "xiaohongshu"},
+                "transcript": {"full_text": "旧转写", "segments": []},
+                "content": {"title": "旧视频"},
+                "error_message": None,
+            }
+        )
+        service_api.XiaoHongShuDownloader.note_payload = {
+            "content_type": "video",
+            "resolved_url": "https://www.xiaohongshu.com/explore/video123",
+            "note_id": "video123",
+            "note_info": {"id": "video123"},
+            "content": {
+                "title": "视频标题",
+                "body": "视频正文",
+                "images": ["https://img/cover.jpg"],
+                "author": "作者",
+                "note_id": "video123",
+                "tags": ["标签"],
+                "resolved_url": "https://www.xiaohongshu.com/explore/video123",
+            },
+        }
+        created = service_api.ServiceApi.create_transcription_task("https://xhslink.com/v2", "xiaohongshu")
+        self.assertEqual(created["task_id"], existing_task_id)
+        self.assertEqual(created["status"], "SUCCESS")
+        self.assertTrue(created["reused"])
 
 
 if __name__ == "__main__":
