@@ -160,8 +160,24 @@ class ServiceQuotaStore:
             QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
             return state
 
+    @classmethod
+    def get_status(cls) -> dict[str, Any]:
+        state = cls.load()
+        remaining = max(DAILY_FREE_TRANSCRIPTION_LIMIT - int(state.get("used_count", 0)), 0)
+        return {
+            "date": state.get("date") or cls._today_str(),
+            "quota_limit": DAILY_FREE_TRANSCRIPTION_LIMIT,
+            "quota_used": int(state.get("used_count", 0)),
+            "quota_remaining": remaining,
+            "reset_at": cls._next_reset_at(),
+        }
+
 
 class ServiceApi:
+    @staticmethod
+    def get_quota_status() -> dict[str, Any]:
+        return ServiceQuotaStore.get_status()
+
     @staticmethod
     def _find_reusable_task(platform: str, url: str, resolved_url: Optional[str] = None) -> Optional[dict[str, Any]]:
         for task in reversed(ServiceTaskStore.list_all()):

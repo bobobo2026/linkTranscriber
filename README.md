@@ -154,6 +154,12 @@ curl http://127.0.0.1:8483/api/service/transcriptions/<task_id>
 - 命中历史复用 `reused=true` 不扣减
 - 超额后会返回提示，要求调用方改用自有 API Key 继续做总结
 
+查看当日额度：
+
+```bash
+curl http://127.0.0.1:8483/api/service/quota
+```
+
 ### 配置 DeepSeek
 
 ```bash

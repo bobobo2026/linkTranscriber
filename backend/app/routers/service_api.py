@@ -109,6 +109,14 @@ class SummaryResponseData(BaseModel):
     prompt_source: str = Field(..., description="提示词来源，default 或 request。")
 
 
+class QuotaStatusResponseData(BaseModel):
+    date: str = Field(..., description="当前额度统计对应的日期。")
+    quota_limit: int = Field(..., description="每日免费转写总额度。")
+    quota_used: int = Field(..., description="今日已使用的新转写次数。")
+    quota_remaining: int = Field(..., description="今日剩余可用的新转写次数。")
+    reset_at: str = Field(..., description="额度重置时间。")
+
+
 class TranscriptionTaskPayload(BaseModel):
     task_id: str = Field(..., description="转写任务 ID。")
     status: TaskStatusEnum = Field(..., description="当前任务状态。")
@@ -205,6 +213,10 @@ class SummarySuccessEnvelope(ApiSuccessEnvelope):
     data: SummaryResponseData
 
 
+class QuotaStatusSuccessEnvelope(ApiSuccessEnvelope):
+    data: QuotaStatusResponseData
+
+
 CREATE_TRANSCRIPTION_RESPONSES = {
     400: {"model": ApiErrorEnvelope, "description": "平台不支持、Cookie 缺失或请求参数无效。"},
     403: {"model": ApiErrorEnvelope, "description": "今日免费转写额度已用完。"},
@@ -218,6 +230,10 @@ GET_TRANSCRIPTION_RESPONSES = {
 
 SUMMARY_RESPONSES = {
     400: {"model": ApiErrorEnvelope, "description": "模型参数无效、任务未完成或转写内容为空。"},
+    500: {"model": ApiErrorEnvelope, "description": "服务内部错误。"},
+}
+
+QUOTA_RESPONSES = {
     500: {"model": ApiErrorEnvelope, "description": "服务内部错误。"},
 }
 
@@ -274,6 +290,20 @@ def get_transcription(task_id: str):
         return R.success(data=task)
     except ServiceApiError as exc:
         return R.error(msg=str(exc), code=404)
+    except Exception as exc:
+        return R.error(msg=str(exc), code=500)
+
+
+@router.get(
+    "/service/quota",
+    summary="查询免费额度",
+    description="返回当日免费新转写额度的总量、已用次数、剩余次数和重置时间。",
+    response_model=QuotaStatusSuccessEnvelope,
+    responses=QUOTA_RESPONSES,
+)
+def get_quota_status():
+    try:
+        return R.success(data=ServiceApi.get_quota_status())
     except Exception as exc:
         return R.error(msg=str(exc), code=500)
 

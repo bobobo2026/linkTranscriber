@@ -483,6 +483,19 @@ class TestServiceApi(unittest.TestCase):
         self.assertEqual(quota_state["used_count"], 0)
         self.assertEqual(quota_state["date"], date.today().isoformat())
 
+    def test_get_quota_status_returns_remaining_count(self):
+        state = {
+            "date": date.today().isoformat(),
+            "used_count": 7,
+            "limit": service_api.DAILY_FREE_TRANSCRIPTION_LIMIT,
+        }
+        service_api.QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+        quota_status = service_api.ServiceApi.get_quota_status()
+        self.assertEqual(quota_status["quota_limit"], service_api.DAILY_FREE_TRANSCRIPTION_LIMIT)
+        self.assertEqual(quota_status["quota_used"], 7)
+        self.assertEqual(quota_status["quota_remaining"], service_api.DAILY_FREE_TRANSCRIPTION_LIMIT - 7)
+        self.assertIn("00:00:00", quota_status["reset_at"])
+
     def test_summarize_prefers_request_level_api_key(self):
         transcript_payload = {"full_text": "转写文本", "segments": []}
 
