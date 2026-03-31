@@ -97,10 +97,6 @@ sudo apt install ffmpeg
   - `http://127.0.0.1:8483/docs`
   - `http://127.0.0.1:8483/redoc`
   - `http://127.0.0.1:8483/openapi.json`
-- 线上运行态：
-  - `http://139.196.124.192/linktranscriber-api/docs`
-  - `http://139.196.124.192/linktranscriber-api/redoc`
-  - `http://139.196.124.192/linktranscriber-api/openapi.json`
 - GitHub Pages：
   - 由 `.github/workflows/deploy-api-docs.yml` 自动发布
   - 首次启用后可在仓库 `Settings -> Pages` 中看到最终 URL
@@ -269,7 +265,7 @@ bash /opt/linktranscriber-api/scripts/deploy-server.sh
 
 部署成功后建议立刻做这三步验证：
 
-1. 检查健康接口：`GET /api/sys_check`
+1. 检查你实际部署环境中的健康接口：`GET /api/sys_check`
 2. 提交一个真实抖音链接到 `POST /api/service/transcriptions`
 3. 用 `POST /api/service/summaries` 验证 DeepSeek 总结链路
 

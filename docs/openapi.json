@@ -15,12 +15,8 @@
       "description": "本地开发环境"
     },
     {
-      "url": "http://139.196.124.192/linktranscriber-api",
-      "description": "线上 IP 入口"
-    },
-    {
-      "url": "https://xtf.spacebit.cn/linktranscriber-api",
-      "description": "临时 HTTPS 入口"
+      "url": "/",
+      "description": "部署环境基址（示例，请按实际部署环境替换）"
     }
   ],
   "paths": {
