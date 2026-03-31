@@ -2,7 +2,9 @@ import json
 import os
 import uuid
 from dataclasses import asdict
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from threading import Lock
 from typing import Any, Optional
 
 import requests
@@ -26,6 +28,9 @@ SUPPORTED_PLATFORMS = {"douyin", "xiaohongshu"}
 
 SERVICE_TASK_DIR = Path(os.getenv("NOTE_OUTPUT_DIR", "note_results")) / "service_tasks"
 SERVICE_TASK_DIR.mkdir(parents=True, exist_ok=True)
+QUOTA_STATE_PATH = Path(os.getenv("NOTE_OUTPUT_DIR", "note_results")) / "service_quota.json"
+DAILY_FREE_TRANSCRIPTION_LIMIT = int(os.getenv("DAILY_FREE_TRANSCRIPTION_LIMIT", "50"))
+_quota_lock = Lock()
 
 DEFAULT_SUMMARY_PROMPT = os.getenv(
     "SERVICE_SUMMARY_PROMPT",
@@ -56,6 +61,12 @@ DEFAULT_SUMMARY_PROMPT = os.getenv(
 
 class ServiceApiError(Exception):
     pass
+
+
+class ServiceApiQuotaExceededError(ServiceApiError):
+    def __init__(self, message: str, data: dict[str, Any]):
+        super().__init__(message)
+        self.data = data
 
 
 class ServiceTaskStore:
@@ -93,6 +104,61 @@ class ServiceTaskStore:
             except Exception:
                 logger.warning("跳过损坏的服务任务文件: %s", path)
         return tasks
+
+
+class ServiceQuotaStore:
+    @staticmethod
+    def _today_str() -> str:
+        return date.today().isoformat()
+
+    @staticmethod
+    def _next_reset_at() -> str:
+        next_midnight = datetime.combine(date.today() + timedelta(days=1), time.min)
+        return next_midnight.strftime("%Y-%m-%d 00:00:00")
+
+    @classmethod
+    def _default_state(cls) -> dict[str, Any]:
+        return {
+            "date": cls._today_str(),
+            "used_count": 0,
+            "limit": DAILY_FREE_TRANSCRIPTION_LIMIT,
+        }
+
+    @classmethod
+    def _load_unlocked(cls) -> dict[str, Any]:
+        if not QUOTA_STATE_PATH.exists():
+            state = cls._default_state()
+            QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            return state
+        state = json.loads(QUOTA_STATE_PATH.read_text(encoding="utf-8"))
+        if state.get("date") != cls._today_str():
+            state = cls._default_state()
+            QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        return state
+
+    @classmethod
+    def load(cls) -> dict[str, Any]:
+        with _quota_lock:
+            return cls._load_unlocked()
+
+    @classmethod
+    def consume_transcription_quota(cls) -> dict[str, Any]:
+        with _quota_lock:
+            state = cls._load_unlocked()
+            if state["used_count"] >= DAILY_FREE_TRANSCRIPTION_LIMIT:
+                raise ServiceApiQuotaExceededError(
+                    "今日免费转写额度已用完，请明天再试，或使用自有 API Key 调用总结接口。",
+                    {
+                        "quota_limit": DAILY_FREE_TRANSCRIPTION_LIMIT,
+                        "quota_used": state["used_count"],
+                        "reset_at": cls._next_reset_at(),
+                        "next_action": "使用自有 API Key 调用 summaries，或明天再试",
+                    },
+                )
+            state["used_count"] += 1
+            state["limit"] = DAILY_FREE_TRANSCRIPTION_LIMIT
+            QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            return state
 
 
 class ServiceApi:
@@ -173,6 +239,8 @@ class ServiceApi:
                 "cookie": cookie,
                 "reused": True,
             }
+
+        ServiceQuotaStore.consume_transcription_quota()
 
         task_id = str(uuid.uuid4())
         ServiceTaskStore.create(
@@ -365,23 +433,43 @@ class ServiceApi:
         )
 
     @staticmethod
-    def _get_summary_client(provider_id: str, model_name: str):
-        provider = ProviderService.get_provider_by_id(provider_id)
-        if not provider:
-            raise ServiceApiError(f"未找到模型供应商: {provider_id}")
-        config = ModelConfig(
-            api_key=provider["api_key"],
-            base_url=provider["base_url"],
-            model_name=model_name,
-            provider=provider["type"],
-            name=provider["name"],
-        )
+    def _get_summary_client(
+        model_name: str,
+        provider_id: Optional[str] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
+    ):
+        if api_key:
+            if not base_url:
+                raise ServiceApiError("使用自有 API Key 时必须提供 base_url")
+            config = ModelConfig(
+                api_key=api_key,
+                base_url=base_url,
+                model_name=model_name,
+                provider="request",
+                name="request-provider",
+            )
+        else:
+            if not provider_id:
+                raise ServiceApiError("必须提供 provider_id，或直接传入 api_key 和 base_url")
+            provider = ProviderService.get_provider_by_id(provider_id)
+            if not provider:
+                raise ServiceApiError(f"未找到模型供应商: {provider_id}")
+            config = ModelConfig(
+                api_key=provider["api_key"],
+                base_url=provider["base_url"],
+                model_name=model_name,
+                provider=provider["type"],
+                name=provider["name"],
+            )
         return OpenAICompatibleProvider(api_key=config.api_key, base_url=config.base_url).get_client
 
     @staticmethod
     def summarize(
-        provider_id: str,
         model_name: str,
+        provider_id: Optional[str] = None,
+        api_key: Optional[str] = None,
+        base_url: Optional[str] = None,
         prompt: Optional[str] = None,
         transcription_task_id: Optional[str] = None,
         transcript_payload: Optional[dict[str, Any]] = None,
@@ -397,7 +485,12 @@ class ServiceApi:
             raise ServiceApiError("必须提供 transcription_task_id 或 transcript")
 
         final_prompt, prompt_source = ServiceApi._build_summary_prompt(prompt, transcript)
-        client = ServiceApi._get_summary_client(provider_id, model_name)
+        client = ServiceApi._get_summary_client(
+            model_name=model_name,
+            provider_id=provider_id,
+            api_key=api_key,
+            base_url=base_url,
+        )
         response = client.chat.completions.create(
             model=model_name,
             messages=[{"role": "user", "content": final_prompt}],

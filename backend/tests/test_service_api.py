@@ -1,9 +1,11 @@
 import importlib.util
+import json
 import pathlib
 import sys
 import types
 import unittest
 from dataclasses import dataclass
+from datetime import date, timedelta
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -246,6 +248,8 @@ class TestServiceApi(unittest.TestCase):
     def setUp(self):
         for path in service_api.SERVICE_TASK_DIR.glob("*.json"):
             path.unlink()
+        if service_api.QUOTA_STATE_PATH.exists():
+            service_api.QUOTA_STATE_PATH.unlink()
         service_api.XiaoHongShuDownloader.note_payload = {
             "content_type": "article",
             "resolved_url": "https://www.xiaohongshu.com/explore/abc123",
@@ -305,6 +309,8 @@ class TestServiceApi(unittest.TestCase):
         created = service_api.ServiceApi.create_transcription_task("https://xhslink.com/abc", "xiaohongshu")
         self.assertEqual(created["status"], "PENDING")
         self.assertFalse(created["reused"])
+        quota_state = service_api.ServiceQuotaStore.load()
+        self.assertEqual(quota_state["used_count"], 1)
 
     def test_make_downloader_uses_stored_cookie_when_request_cookie_missing(self):
         downloader = service_api.ServiceApi._make_downloader(platform="douyin")
@@ -413,6 +419,7 @@ class TestServiceApi(unittest.TestCase):
         self.assertEqual(created["task_id"], existing_task_id)
         self.assertEqual(created["status"], "SUCCESS")
         self.assertTrue(created["reused"])
+        self.assertEqual(service_api.ServiceQuotaStore.load()["used_count"], 0)
 
     def test_create_transcription_task_reuses_existing_success_task_by_resolved_url(self):
         existing_task_id = "existing-by-resolved"
@@ -452,6 +459,86 @@ class TestServiceApi(unittest.TestCase):
         self.assertEqual(created["task_id"], existing_task_id)
         self.assertEqual(created["status"], "SUCCESS")
         self.assertTrue(created["reused"])
+
+    def test_quota_blocks_new_transcription_after_limit(self):
+        state = {
+            "date": date.today().isoformat(),
+            "used_count": service_api.DAILY_FREE_TRANSCRIPTION_LIMIT,
+            "limit": service_api.DAILY_FREE_TRANSCRIPTION_LIMIT,
+        }
+        service_api.QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+        with self.assertRaises(service_api.ServiceApiQuotaExceededError) as ctx:
+            service_api.ServiceApi.create_transcription_task("https://xhslink.com/blocked", "xiaohongshu")
+        self.assertIn("今日免费转写额度已用完", str(ctx.exception))
+        self.assertEqual(ctx.exception.data["quota_limit"], service_api.DAILY_FREE_TRANSCRIPTION_LIMIT)
+
+    def test_quota_resets_on_next_day(self):
+        state = {
+            "date": (date.today() - timedelta(days=1)).isoformat(),
+            "used_count": service_api.DAILY_FREE_TRANSCRIPTION_LIMIT,
+            "limit": service_api.DAILY_FREE_TRANSCRIPTION_LIMIT,
+        }
+        service_api.QUOTA_STATE_PATH.write_text(json.dumps(state, ensure_ascii=False), encoding="utf-8")
+        quota_state = service_api.ServiceQuotaStore.load()
+        self.assertEqual(quota_state["used_count"], 0)
+        self.assertEqual(quota_state["date"], date.today().isoformat())
+
+    def test_summarize_prefers_request_level_api_key(self):
+        transcript_payload = {"full_text": "转写文本", "segments": []}
+
+        class _Message:
+            content = "总结结果"
+
+        class _Choice:
+            message = _Message()
+
+        class _Response:
+            choices = [_Choice()]
+
+        class _Completions:
+            @staticmethod
+            def create(**_kwargs):
+                return _Response()
+
+        class _Chat:
+            pass
+
+        _Chat.completions = _Completions()
+
+        class _Client:
+            pass
+
+        _Client.chat = _Chat()
+
+        captured = {}
+
+        class _Provider:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+            @property
+            def get_client(self):
+                return _Client()
+
+        service_api.OpenAICompatibleProvider = _Provider
+        result = service_api.ServiceApi.summarize(
+            model_name="deepseek-chat",
+            api_key="sk-test",
+            base_url="https://api.deepseek.com",
+            transcript_payload=transcript_payload,
+        )
+        self.assertEqual(captured["api_key"], "sk-test")
+        self.assertEqual(captured["base_url"], "https://api.deepseek.com")
+        self.assertEqual(result["summary_markdown"], "总结结果")
+
+    def test_summarize_requires_base_url_when_api_key_present(self):
+        with self.assertRaises(service_api.ServiceApiError) as ctx:
+            service_api.ServiceApi.summarize(
+                model_name="deepseek-chat",
+                api_key="sk-test",
+                transcript_payload={"full_text": "转写文本", "segments": []},
+            )
+        self.assertIn("base_url", str(ctx.exception))
 
 
 if __name__ == "__main__":

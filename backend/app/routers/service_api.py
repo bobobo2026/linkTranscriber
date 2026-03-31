@@ -4,7 +4,7 @@ from typing import Any, Optional
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel, Field, model_validator
 
-from app.services.service_api import ServiceApi, ServiceApiError
+from app.services.service_api import ServiceApi, ServiceApiError, ServiceApiQuotaExceededError
 from app.utils.response import ResponseWrapper as R
 
 router = APIRouter(tags=["Service API"])
@@ -145,8 +145,10 @@ class SummaryRequest(BaseModel):
         default=None,
         description="直接传入转写结果进行总结。与 transcription_task_id 二选一。",
     )
-    provider_id: str = Field(..., description="模型供应商 ID。", examples=["deepseek"])
+    provider_id: Optional[str] = Field(default=None, description="模型供应商 ID。未传时可改用 api_key + base_url。", examples=["deepseek"])
     model_name: str = Field(..., description="模型名称。", examples=["deepseek-chat"])
+    api_key: Optional[str] = Field(default=None, description="请求级模型 API Key。传入后优先使用该配置。")
+    base_url: Optional[str] = Field(default=None, description="请求级模型 Base URL。与 api_key 配套使用。")
     prompt: Optional[str] = Field(
         default=None,
         description="请求级自定义提示词。传入后会覆盖默认总结提示词；默认会返回固定结构的 TodoList。",
@@ -156,6 +158,10 @@ class SummaryRequest(BaseModel):
     def validate_input(self):
         if not self.transcription_task_id and not self.transcript:
             raise ValueError("必须提供 transcription_task_id 或 transcript")
+        if self.api_key and not self.base_url:
+            raise ValueError("传入 api_key 时必须同时提供 base_url")
+        if not self.api_key and not self.provider_id:
+            raise ValueError("必须提供 provider_id，或直接传入 api_key 和 base_url")
         return self
 
     model_config = {
@@ -164,6 +170,12 @@ class SummaryRequest(BaseModel):
                 {
                     "transcription_task_id": "8664a91d-c882-43e9-8030-b0633a9ba8b3",
                     "provider_id": "deepseek",
+                    "model_name": "deepseek-chat",
+                },
+                {
+                    "transcription_task_id": "8664a91d-c882-43e9-8030-b0633a9ba8b3",
+                    "api_key": "sk-xxx",
+                    "base_url": "https://api.deepseek.com",
                     "model_name": "deepseek-chat",
                 },
                 {
@@ -195,6 +207,7 @@ class SummarySuccessEnvelope(ApiSuccessEnvelope):
 
 CREATE_TRANSCRIPTION_RESPONSES = {
     400: {"model": ApiErrorEnvelope, "description": "平台不支持、Cookie 缺失或请求参数无效。"},
+    403: {"model": ApiErrorEnvelope, "description": "今日免费转写额度已用完。"},
     500: {"model": ApiErrorEnvelope, "description": "服务内部错误。"},
 }
 
@@ -240,6 +253,8 @@ def create_transcription(data: CreateTranscriptionRequest, background_tasks: Bac
                 "reused": bool(created.get("reused")),
             }
         )
+    except ServiceApiQuotaExceededError as exc:
+        return R.error(msg=str(exc), code=40301, data=exc.data)
     except ServiceApiError as exc:
         return R.error(msg=str(exc), code=400)
     except Exception as exc:
@@ -276,8 +291,10 @@ def get_transcription(task_id: str):
 def create_summary(data: SummaryRequest):
     try:
         result = ServiceApi.summarize(
-            provider_id=data.provider_id,
             model_name=data.model_name,
+            provider_id=data.provider_id,
+            api_key=data.api_key,
+            base_url=data.base_url,
             prompt=data.prompt,
             transcription_task_id=data.transcription_task_id,
             transcript_payload=data.transcript.model_dump() if data.transcript else None,

@@ -147,6 +147,13 @@ curl http://127.0.0.1:8483/api/service/transcriptions/<task_id>
 - 完整文本 `transcript.full_text`
 - 分段文本 `transcript.segments`
 
+免费额度说明：
+
+- 服务端每天提供 `50` 次免费新转写额度
+- 只有“新建转写任务”会扣减额度
+- 命中历史复用 `reused=true` 不扣减
+- 超额后会返回提示，要求调用方改用自有 API Key 继续做总结
+
 ### 配置 DeepSeek
 
 ```bash
@@ -170,6 +177,19 @@ curl -X POST http://127.0.0.1:8483/api/service/summaries \
   -d '{
     "transcription_task_id": "uuid",
     "provider_id": "deepseek",
+    "model_name": "deepseek-chat"
+  }'
+```
+
+### 使用自有 API Key 调用总结接口
+
+```bash
+curl -X POST http://127.0.0.1:8483/api/service/summaries \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "transcription_task_id": "uuid",
+    "api_key": "sk-xxx",
+    "base_url": "https://api.deepseek.com",
     "model_name": "deepseek-chat"
   }'
 ```
@@ -208,6 +228,21 @@ curl -X POST http://127.0.0.1:8483/api/service/summaries \
   "data": {
     "summary_markdown": "总结内容",
     "prompt_source": "default"
+  }
+}
+```
+
+如果免费转写额度已满，创建新任务会返回：
+
+```json
+{
+  "code": 40301,
+  "msg": "今日免费转写额度已用完，请明天再试，或使用自有 API Key 调用总结接口。",
+  "data": {
+    "quota_limit": 50,
+    "quota_used": 50,
+    "reset_at": "2026-04-01 00:00:00",
+    "next_action": "使用自有 API Key 调用 summaries，或明天再试"
   }
 }
 ```

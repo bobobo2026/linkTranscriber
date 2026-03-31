@@ -64,6 +64,9 @@ Latest verified locally and during deployment:
 ## Current Behavior Expectations
 
 - Creating a transcription task should immediately return `PENDING`
+- The service offers `50` free new transcription tasks per day globally
+- Only brand-new transcription tasks consume quota; reused tasks do not
+- After the free quota is exhausted, new transcription creation should return a quota warning response
 - Polling should move through `TRANSCRIBING` and then `SUCCESS` or `FAILED`
 - Successful transcription returns:
   - `source`
@@ -73,6 +76,7 @@ Latest verified locally and during deployment:
 - Summary API accepts either:
   - `transcription_task_id`
   - direct `transcript`
+- Summary API also accepts request-level `api_key + base_url + model_name`
 - Request `prompt` fully overrides the default summary prompt
 
 ## Security Notes
